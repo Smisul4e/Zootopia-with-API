@@ -1,94 +1,85 @@
-import requests
-import json
-import webbrowser
-import os
+from dotenv import load_dotenv
+load_dotenv()
+import data_fetcher
 
 
-# Function to get animal information
-def get_animal_info(animal_name, api_key):
-    url = "https://api.api-ninjas.com/v1/animals"
-    headers = {
-        'X-Api-Key': api_key
-    }
-
-    try:
-        response = requests.get(url, headers=headers, params={'name': animal_name})
-        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-        print("HTTP request successful.")
-        return response.json()  # Return the JSON response
-    except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")
-    except requests.exceptions.RequestException as err:
-        print(f"Error occurred: {err}")
-    return None
-
-
-# Function to generate an HTML file with animal information
-def generate_html(animal_data, animal_name):
-    if not animal_data:
-        print("No data provided to generate HTML.")
-        return False
-
-    html_content = f"""
-    <!DOCTYPE html>
-    <html lang="bg">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Information about {animal_name.capitalize()}</title>
-    </head>
-    <body>
-        <h1>Information about {animal_name.capitalize()}</h1>
-        <ul>
+def serialize_animal(animal_obj):
     """
-
-    for animal in animal_data:
-        html_content += f"""
-        <li>
-            <h2>{animal.get('name', 'Unknown')}</h2>
-            <p><strong>Scientific Name:</strong> {animal.get('scientific_name', 'Unknown')}</p>
-            <p><strong>Habitat:</strong> {animal.get('habitat', 'Unknown')}</p>
-            <p><strong>Diet:</strong> {animal.get('diet', 'Unknown')}</p>
-            <p><strong>Location:</strong> {animal.get('locations', 'Unknown')}</p>
-            <p><strong>Characteristics:</strong> {animal.get('characteristics', 'Unknown')}</p>
-        </li>
-        """
-
-    html_content += """
-        </ul>
-    </body>
-    </html>
+    Serialize an animal object into HTML format for a card.
     """
-
-    try:
-        with open("animals.html", "w", encoding='utf-8') as file:
-            file.write(html_content)
-        print("HTML file content written successfully.")
-        print("Website was successfully generated to the file animals.html.")
-        return True
-    except Exception as e:
-        print(f"Error writing HTML file: {e}")
-        return False
-
-
-# Main function
-def main():
-    api_key = 'nAjjhYhpOUbxkLUor9zMzA==oSEFYYNNUdbxXqyy'  # Replace with your actual API key
-    animal_name = input("Enter a name of an animal: ")
-
-    # Fetch animal information
-    animal_data = get_animal_info(animal_name, api_key)
-
-    if animal_data:
-        # Print fetched data for debugging
-        print("Fetched animal data:")
-        print(json.dumps(animal_data, indent=4))
-        # Generate HTML file with animal information
-        if generate_html(animal_data, animal_name):
-            # Open the generated HTML file in the default web browser
-            webbrowser.open("file://" + os.path.realpath("animals.html"))
+    content = ''
+    if 'locations' in animal_obj and animal_obj['locations']:
+        location = animal_obj['locations'][0]
     else:
-        print("No information found for the specified animal.")
+        location = "undefined"
+
+    content += "<li class=\"cards__item\">"
+    content += "<div class=\"card__title\">"
+    content += f"{animal_obj['name']}</div>"
+    content += "<p class=\"card__text\">"
+    content += f"<strong>Diet:</strong> {animal_obj['characteristics']['diet']}<br/>"
+    content += f"<strong>Location:</strong> {location}<br/>"
+
+    if 'type' in animal_obj['characteristics']:
+        animal_type = animal_obj['characteristics']['type']
+    else:
+        animal_type = "undefined"
+
+    content += f"<strong>Type:</strong> {animal_type}<br/>"
+    content += "</p>"
+    content += "</li>"
+    return content
+
+
+def print_animals_data(data):
+    """
+    Serialize a list of animal objects into HTML content for printing.
+    """
+    output = ''
+    for animal_obj in data:
+        output += serialize_animal(animal_obj)
+    return output
+
+
+def read_html(read_file):
+    """
+    Read content from the file.
+    """
+    with open(read_file, "r") as handle:
+        return handle.read()
+
+
+def replace_animals_info(output, html_temp):
+    """
+    Replace the placeholder in the HTML template with the animal data.
+    """
+    return html_temp.replace("__REPLACE_ANIMALS_INFO__", output)
+
+
+def write_html(new_string, new_file):
+    """
+    Write content to an HTML file.
+    """
+    with open(new_file, "w") as handle:
+        handle.write(new_string)
+
+
+def main():
+
+
+    animal_name = input("Enter the name of an animal: ").strip().lower()
+    animal_data = data_fetcher.fetch_data(animal_name)
+
+    if not animal_data:
+        output = f"<h2>The animal {animal_name} doesn't exist.</h2>"
+    else:
+        output = print_animals_data(animal_data)
+
+        print(output)
+
+    html_temp = read_html("animals_template.html")
+    new_string = replace_animals_info(output, html_temp)
+    write_html(new_string, 'animals.html')
 
 
 if __name__ == "__main__":
